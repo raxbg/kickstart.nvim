@@ -345,6 +345,9 @@ require('telescope').setup {
         ['<C-u>'] = false,
         ['<C-d>'] = false,
       },
+      n = {
+        ['t'] = require('telescope.actions').select_tab,
+      },
     },
   },
 }
@@ -409,6 +412,7 @@ vim.keymap.set('n', '<leader>s/', telescope_live_grep_open_files, { desc = '[S]e
 vim.keymap.set('n', '<leader>ss', require('telescope.builtin').builtin, { desc = '[S]earch [S]elect Telescope' })
 vim.keymap.set('n', '<leader>gf', require('telescope.builtin').git_files, { desc = 'Search [G]it [F]iles' })
 vim.keymap.set('n', '<leader>sf', require('telescope.builtin').find_files, { desc = '[S]earch [F]iles' })
+vim.keymap.set('n', '<leader>f',  require('telescope.builtin').find_files, { desc = '[S]earch [F]iles' })
 vim.keymap.set('n', '<leader>sh', require('telescope.builtin').help_tags, { desc = '[S]earch [H]elp' })
 vim.keymap.set('n', '<leader>sw', require('telescope.builtin').grep_string, { desc = '[S]earch current [W]ord' })
 vim.keymap.set('n', '<leader>sg', require('telescope.builtin').live_grep, { desc = '[S]earch by [G]rep' })
@@ -514,7 +518,7 @@ local on_attach = function(_, bufnr)
 
   -- See `:help K` for why this keymap
   nmap('K', vim.lsp.buf.hover, 'Hover Documentation')
-  nmap('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
+  nmap('<leader>k', vim.lsp.buf.signature_help, 'Signature Documentation')
 
   -- Lesser used LSP functionality
   nmap('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
@@ -563,11 +567,33 @@ require('mason-lspconfig').setup()
 --  define the property 'filetypes' to the map in question.
 local servers = {
   clangd = {},
-  gopls = {},
+  gopls = {
+    gopls = {
+      completeUnimported = true,
+    },
+  },
   pyright = {},
   rust_analyzer = {},
   tsserver = {},
-  phpactor = {},
+  intelephense = {
+    intelephense = {
+      files = {
+        exclude = {
+          '**/.git/**',
+          '**/.svn/**',
+          '**/.hg/**',
+          '**/CVS/**',
+          '**/.DS_Store/**',
+          '**/node_modules/**',
+          '**/bower_components/**',
+          '**/vendor/**/{Tests,tests}/**',
+          '**/.history/**',
+          '**/vendor/**/vendor/**',
+          '**/docker-mounts/**'
+        }
+      }
+    }
+  },
   html = { filetypes = { 'html', 'twig', 'hbs', 'tpl'} },
 
   lua_ls = {
@@ -651,8 +677,10 @@ cmp.setup {
     end, { 'i', 's' }),
   },
   sources = {
+    { name = 'buffer' },
     { name = 'nvim_lsp' },
-    { name = 'luasnip' },
+    -- { name = 'luasnip' },
+    { name = 'path' },
   },
 }
 
