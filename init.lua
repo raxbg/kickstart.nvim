@@ -660,7 +660,11 @@ cmp.setup {
       select = true,
     },
     ['<Tab>'] = cmp.mapping(function(fallback)
-      if cmp.visible() then
+      local cos = require("copilot.suggestion")
+
+      if cos.is_visible() then
+        cos.accept(modifier)
+      elseif cmp.visible() then
         if #cmp.get_entries() == 1 then
           cmp.confirm({ select = true })
         else
@@ -681,12 +685,21 @@ cmp.setup {
     end, { 'i', 's' }),
   },
   sources = {
+    { name = 'copilot' },
     { name = 'buffer' },
     { name = 'path' },
     { name = 'nvim_lsp' },
     -- { name = 'luasnip' },
   },
 }
+
+cmp.event:on("menu_opened", function()
+  vim.b.copilot_suggestion_hidden = true
+end)
+
+cmp.event:on("menu_closed", function()
+  vim.b.copilot_suggestion_hidden = false
+end)
 
 vim.lsp.handlers["textDocument/publishDiagnostics"] =
   vim.lsp.with(
