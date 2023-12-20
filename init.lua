@@ -346,6 +346,9 @@ require('telescope').setup {
       i = {
         ['<C-u>'] = false,
         ['<C-d>'] = false,
+        ['K'] = require('telescope.actions').move_selection_previous,
+        ['J'] = require('telescope.actions').move_selection_next,
+        ['O'] = require('telescope.actions').select_tab,
       },
       n = {
         ['t'] = require('telescope.actions').select_tab,
@@ -447,7 +450,7 @@ vim.defer_fn(function()
     textobjects = {
       select = {
         enable = true,
-        lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
+        lookahead = false, -- Automatically jump forward to textobj, similar to targets.vim
         keymaps = {
           -- You can use the capture groups defined in textobjects.scm
           ['aa'] = '@parameter.outer',
@@ -456,6 +459,10 @@ vim.defer_fn(function()
           ['if'] = '@function.inner',
           ['ac'] = '@class.outer',
           ['ic'] = '@class.inner',
+          ['ab'] = '@block.outer',
+          ['ib'] = '@block.inner',
+          ['al'] = '@loop.outer',
+          ['il'] = '@loop.inner',
         },
       },
       move = {
