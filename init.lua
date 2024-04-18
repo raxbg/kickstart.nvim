@@ -810,6 +810,7 @@ vim.lsp.handlers["textDocument/publishDiagnostics"] =
   }
 )
 
+vim.o.relativenumber = true
 vim.cmd('source ~/.nvimrc')
 
 -- The line beneath this is called `modeline`. See `:help modeline`
