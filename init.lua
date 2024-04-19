@@ -810,6 +810,7 @@ vim.lsp.handlers["textDocument/publishDiagnostics"] =
   }
 )
 
+vim.o.relativenumber = true
 vim.keymap.set('n', '<M-,>', ':cprev<CR>')
 vim.keymap.set('n', '<M-.>', ':cnext<CR>')
 
