@@ -810,6 +810,9 @@ vim.lsp.handlers["textDocument/publishDiagnostics"] =
   }
 )
 
+vim.keymap.set('n', '<M-,>', ':cprev<CR>')
+vim.keymap.set('n', '<M-.>', ':cnext<CR>')
+
 vim.cmd('source ~/.nvimrc')
 
 -- The line beneath this is called `modeline`. See `:help modeline`
