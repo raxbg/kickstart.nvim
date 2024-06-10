@@ -818,6 +818,22 @@ vim.o.relativenumber = true
 vim.keymap.set('n', '<M-,>', ':cprev<CR>')
 vim.keymap.set('n', '<M-.>', ':cnext<CR>')
 
+-- Map W to save the buffer if not in a motion and in normal mode
+vim.keymap.set('n', 'W', function()
+    -- Check if the command-line window is active
+    if vim.fn.getcmdwintype() ~= '' then
+        return 'W'
+    end
+
+    -- Check if the current mode is not one of the motion modes
+    local mode = vim.api.nvim_get_mode().mode
+    if mode == 'n' then
+        return ':w<CR>'
+    else
+        return 'W'
+    end
+end, {expr = true, noremap = true})
+
 vim.cmd('source ~/.nvimrc')
 
 -- The line beneath this is called `modeline`. See `:help modeline`
