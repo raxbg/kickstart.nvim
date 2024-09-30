@@ -606,7 +606,7 @@ local servers = {
   },
   pyright = {},
   rust_analyzer = {},
-  tsserver = {},
+  ts_ls = {},
   intelephense = {
     intelephense = {
       files = {
