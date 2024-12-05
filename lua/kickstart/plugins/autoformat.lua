@@ -60,12 +60,16 @@ return {
               return
             end
 
-            vim.lsp.buf.format {
-              async = false,
-              filter = function(c)
-                return c.id == client.id
-              end,
-            }
+            return
+
+            require("conform").format({ bufnr = args.buf })
+
+            -- vim.lsp.buf.format {
+            --   async = false,
+            --   filter = function(c)
+            --     return c.id == client.id
+            --   end,
+            -- }
           end,
         })
       end,
