@@ -98,6 +98,12 @@ require('lazy').setup({
     },
   },
 
+  --  Linting
+  {
+    -- LSP Configuration & Plugins
+    'mfussenegger/nvim-lint',
+  },
+
   {
     -- Autocompletion
     'hrsh7th/nvim-cmp',
@@ -737,6 +743,29 @@ mason_lspconfig.setup_handlers {
     }
   end,
 }
+
+-- Linting setup
+vim.env.ESLINT_D_PPID = vim.fn.getpid() -- needed so eslind_d exits after vim exits
+require('lint').linters_by_ft = {
+  typescript = {'eslint_d'},
+  javascript = {'eslint_d'},
+}
+
+function GetCurrentBufferDir()
+  local path = vim.api.nvim_buf_get_name(0)
+  if path == "" then
+    return vim.fn.getcwd()  -- return current working directory if buffer has no name
+  end
+  return vim.fn.fnamemodify(path, ':h')
+end
+
+vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost", "InsertLeave", "TextChanged" }, {
+  callback = function()
+    require("lint").try_lint(nil, {
+      cwd = GetCurrentBufferDir()
+    })
+  end,
+})
 
 -- [[ Configure nvim-cmp ]]
 -- See `:help cmp`
