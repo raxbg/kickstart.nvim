@@ -744,6 +744,10 @@ mason_lspconfig.setup_handlers {
   end,
 }
 
+require('lspconfig').pyright.setup({
+  root_dir = require('lspconfig.util').root_pattern('pyrightconfig.json', 'pyproject.toml', '.git')
+})
+
 -- Linting setup
 vim.env.ESLINT_D_PPID = vim.fn.getpid() -- needed so eslind_d exits after vim exits
 require('lint').linters_by_ft = {
