@@ -76,9 +76,18 @@ vim.api.nvim_create_autocmd('VimEnter', {
       return
     end
 
-    if vim.fn.executable 'tree-sitter' == 0 then
+    local has_tree_sitter_cli = vim.fn.executable 'tree-sitter' == 1
+    local tree_sitter_cli_ok = false
+    if has_tree_sitter_cli then
+      local ok, result = pcall(function()
+        return vim.system({ 'tree-sitter', '--version' }, { text = true }):wait()
+      end)
+      tree_sitter_cli_ok = ok and result and result.code == 0
+    end
+
+    if not tree_sitter_cli_ok then
       vim.notify(
-        "tree-sitter CLI is not installed. Install it (e.g. `npm install -g tree-sitter-cli`) for nvim-treesitter parser updates.",
+        "tree-sitter CLI is missing or broken. Install it via your OS package manager or `cargo install tree-sitter-cli` (not npm) for nvim-treesitter parser updates.",
         vim.log.levels.WARN
       )
     end
@@ -351,6 +360,7 @@ vim.o.completeopt = 'menuone,noselect'
 
 -- NOTE: You should make sure your terminal supports this
 vim.o.termguicolors = true
+-- vim.cmd.syntax 'enable'
 
 -- [[ Basic Keymaps ]]
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
@@ -487,14 +497,76 @@ vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = 
 -- See `:help nvim-treesitter`
 -- Defer Treesitter setup after first render to improve startup time of 'nvim {filename}'
 vim.defer_fn(function()
-  require('nvim-treesitter').setup()
+  local nvim_treesitter = require 'nvim-treesitter'
+  nvim_treesitter.setup()
+
+  local ts_parsers = {
+    'lua',
+    'vim',
+    'vimdoc',
+    'query',
+    'python',
+    'go',
+    'php',
+    'typescript',
+    'markdown',
+    'yaml',
+    'json',
+  }
+
+  local installed = {}
+  for _, lang in ipairs(nvim_treesitter.get_installed()) do
+    installed[lang] = true
+  end
+
+  local missing_parsers = {}
+  for _, lang in ipairs(ts_parsers) do
+    if not installed[lang] then
+      table.insert(missing_parsers, lang)
+    end
+  end
+
+  if #missing_parsers > 0 and vim.fn.executable 'tree-sitter' == 1 then
+    local ok, result = pcall(function()
+      return vim.system({ 'tree-sitter', '--version' }, { text = true }):wait()
+    end)
+    if ok and result and result.code == 0 then
+      nvim_treesitter.install(missing_parsers, { summary = true })
+    end
+  end
+
+  local function start_treesitter(bufnr)
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+      return
+    end
+    if vim.bo[bufnr].buftype ~= '' or vim.bo[bufnr].filetype == '' then
+      return
+    end
+
+    local lang = vim.treesitter.language.get_lang(vim.bo[bufnr].filetype)
+    if not lang then
+      return
+    end
+    local ok, query = pcall(vim.treesitter.query.get, lang, 'highlights')
+    if not ok or not query then
+      return
+    end
+
+    pcall(vim.treesitter.start, bufnr)
+    vim.bo[bufnr].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+  end
 
   vim.api.nvim_create_autocmd('FileType', {
     callback = function(args)
-      pcall(vim.treesitter.start, args.buf)
-      vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+      start_treesitter(args.buf)
     end,
   })
+
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(bufnr) then
+      start_treesitter(bufnr)
+    end
+  end
 
   require('nvim-treesitter-textobjects').setup {
     select = {
