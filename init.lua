@@ -69,6 +69,22 @@ do
   end
 end
 
+vim.api.nvim_create_autocmd('VimEnter', {
+  once = true,
+  callback = function()
+    if #vim.api.nvim_list_uis() == 0 then
+      return
+    end
+
+    if vim.fn.executable 'tree-sitter' == 0 then
+      vim.notify(
+        "tree-sitter CLI is not installed. Install it (e.g. `npm install -g tree-sitter-cli`) for nvim-treesitter parser updates.",
+        vim.log.levels.WARN
+      )
+    end
+  end,
+})
+
 -- [[ Configure plugins ]]
 -- NOTE: Here is where you install your plugins.
 --  You can configure plugins using the `config` key.
