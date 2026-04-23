@@ -60,6 +60,15 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+-- Prefer Neovim's bundled Lua parser on 0.12+ to avoid parser/query mismatches
+do
+  local parser_root = vim.fs.joinpath(vim.fn.fnamemodify(vim.v.progpath, ':h:h'), 'lib', 'nvim', 'parser')
+  local lua_parser = vim.fs.joinpath(parser_root, 'lua.so')
+  if vim.uv.fs_stat(lua_parser) then
+    pcall(vim.treesitter.language.add, 'lua', { path = lua_parser })
+  end
+end
+
 -- [[ Configure plugins ]]
 -- NOTE: Here is where you install your plugins.
 --  You can configure plugins using the `config` key.
@@ -242,7 +251,6 @@ require('lazy').setup({
   -- Fuzzy Finder (files, lsp, etc)
   {
     'nvim-telescope/telescope.nvim',
-    branch = '0.1.x',
     dependencies = {
       'nvim-lua/plenary.nvim',
       -- Fuzzy Finder Algorithm which requires local dependencies to be built.
@@ -263,8 +271,9 @@ require('lazy').setup({
   {
     -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
+    branch = 'main',
     dependencies = {
-      'nvim-treesitter/nvim-treesitter-textobjects',
+      { 'nvim-treesitter/nvim-treesitter-textobjects', branch = 'main' },
     },
     build = ':TSUpdate',
   },
@@ -462,73 +471,50 @@ vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = 
 -- See `:help nvim-treesitter`
 -- Defer Treesitter setup after first render to improve startup time of 'nvim {filename}'
 vim.defer_fn(function()
-  require('nvim-treesitter.configs').setup {
-    -- Add languages to be installed here that you want installed for treesitter
-    ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash', 'php' },
+  require('nvim-treesitter').setup()
 
-    -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
-    auto_install = false,
+  vim.api.nvim_create_autocmd('FileType', {
+    callback = function(args)
+      pcall(vim.treesitter.start, args.buf)
+      vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+    end,
+  })
 
-    highlight = { enable = true },
-    indent = { enable = true },
-    incremental_selection = {
-      enable = true,
-      keymaps = {
-        init_selection = '<c-space>',
-        node_incremental = '<c-space>',
-        scope_incremental = '<c-s>',
-        node_decremental = '<M-space>',
-      },
+  require('nvim-treesitter-textobjects').setup {
+    select = {
+      lookahead = false,
     },
-    textobjects = {
-      select = {
-        enable = true,
-        lookahead = false, -- Automatically jump forward to textobj, similar to targets.vim
-        keymaps = {
-          -- You can use the capture groups defined in textobjects.scm
-          ['aa'] = '@parameter.outer',
-          ['ia'] = '@parameter.inner',
-          ['af'] = '@function.outer',
-          ['if'] = '@function.inner',
-          ['ac'] = '@class.outer',
-          ['ic'] = '@class.inner',
-          ['ab'] = '@block.outer',
-          ['ib'] = '@block.inner',
-          ['al'] = '@loop.outer',
-          ['il'] = '@loop.inner',
-        },
-      },
-      move = {
-        enable = true,
-        set_jumps = true, -- whether to set jumps in the jumplist
-        goto_next_start = {
-          [']m'] = '@function.outer',
-          [']]'] = '@class.outer',
-        },
-        goto_next_end = {
-          [']M'] = '@function.outer',
-          [']['] = '@class.outer',
-        },
-        goto_previous_start = {
-          ['[m'] = '@function.outer',
-          ['[['] = '@class.outer',
-        },
-        goto_previous_end = {
-          ['[M'] = '@function.outer',
-          ['[]'] = '@class.outer',
-        },
-      },
-      swap = {
-        enable = true,
-        swap_next = {
-          ['<leader>n'] = '@parameter.inner',
-        },
-        swap_previous = {
-          ['<leader>p'] = '@parameter.inner',
-        },
-      },
+    move = {
+      set_jumps = true,
     },
   }
+
+  local ts_select = require 'nvim-treesitter-textobjects.select'
+  local ts_move = require 'nvim-treesitter-textobjects.move'
+  local ts_swap = require 'nvim-treesitter-textobjects.swap'
+
+  vim.keymap.set({ 'x', 'o' }, 'aa', function() ts_select.select_textobject('@parameter.outer', 'textobjects') end)
+  vim.keymap.set({ 'x', 'o' }, 'ia', function() ts_select.select_textobject('@parameter.inner', 'textobjects') end)
+  vim.keymap.set({ 'x', 'o' }, 'af', function() ts_select.select_textobject('@function.outer', 'textobjects') end)
+  vim.keymap.set({ 'x', 'o' }, 'if', function() ts_select.select_textobject('@function.inner', 'textobjects') end)
+  vim.keymap.set({ 'x', 'o' }, 'ac', function() ts_select.select_textobject('@class.outer', 'textobjects') end)
+  vim.keymap.set({ 'x', 'o' }, 'ic', function() ts_select.select_textobject('@class.inner', 'textobjects') end)
+  vim.keymap.set({ 'x', 'o' }, 'ab', function() ts_select.select_textobject('@block.outer', 'textobjects') end)
+  vim.keymap.set({ 'x', 'o' }, 'ib', function() ts_select.select_textobject('@block.inner', 'textobjects') end)
+  vim.keymap.set({ 'x', 'o' }, 'al', function() ts_select.select_textobject('@loop.outer', 'textobjects') end)
+  vim.keymap.set({ 'x', 'o' }, 'il', function() ts_select.select_textobject('@loop.inner', 'textobjects') end)
+
+  vim.keymap.set({ 'n', 'x', 'o' }, ']m', function() ts_move.goto_next_start('@function.outer', 'textobjects') end)
+  vim.keymap.set({ 'n', 'x', 'o' }, ']]', function() ts_move.goto_next_start('@class.outer', 'textobjects') end)
+  vim.keymap.set({ 'n', 'x', 'o' }, ']M', function() ts_move.goto_next_end('@function.outer', 'textobjects') end)
+  vim.keymap.set({ 'n', 'x', 'o' }, '][', function() ts_move.goto_next_end('@class.outer', 'textobjects') end)
+  vim.keymap.set({ 'n', 'x', 'o' }, '[m', function() ts_move.goto_previous_start('@function.outer', 'textobjects') end)
+  vim.keymap.set({ 'n', 'x', 'o' }, '[[', function() ts_move.goto_previous_start('@class.outer', 'textobjects') end)
+  vim.keymap.set({ 'n', 'x', 'o' }, '[M', function() ts_move.goto_previous_end('@function.outer', 'textobjects') end)
+  vim.keymap.set({ 'n', 'x', 'o' }, '[]', function() ts_move.goto_previous_end('@class.outer', 'textobjects') end)
+
+  vim.keymap.set('n', '<leader>n', function() ts_swap.swap_next('@parameter.inner') end)
+  vim.keymap.set('n', '<leader>p', function() ts_swap.swap_previous('@parameter.inner') end)
 end, 0)
 
 -- [[ Configure LSP ]]
@@ -601,7 +587,6 @@ require('which-key').add {
 -- mason-lspconfig requires that these setup functions are called in this order
 -- before setting up the servers.
 require('mason').setup()
-require('mason-lspconfig').setup()
 
 -- Enable the following language servers
 --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
@@ -614,14 +599,17 @@ require('mason-lspconfig').setup()
 local servers = {
   clangd = {},
   gopls = {
+    settings = {
     gopls = {
       completeUnimported = true,
+    },
     },
   },
   pyright = {},
   rust_analyzer = {},
   ts_ls = {},
   intelephense = {
+    settings = {
     intelephense = {
       files = {
         exclude = {
@@ -714,15 +702,18 @@ local servers = {
         "wordpress"
       }
     }
+    },
   },
   html = { filetypes = { 'html', 'twig', 'hbs', 'tpl'} },
 
   lua_ls = {
+    settings = {
     Lua = {
       workspace = { checkThirdParty = false },
       telemetry = { enable = false },
       -- NOTE: toggle below to ignore Lua_LS's noisy `missing-fields` warnings
       -- diagnostics = { disable = { 'missing-fields' } },
+    },
     },
   },
 }
@@ -739,22 +730,18 @@ local mason_lspconfig = require 'mason-lspconfig'
 
 mason_lspconfig.setup {
   ensure_installed = vim.tbl_keys(servers),
+  automatic_enable = false,
 }
 
-mason_lspconfig.setup_handlers {
-  function(server_name)
-    require('lspconfig')[server_name].setup {
-      capabilities = capabilities,
-      on_attach = on_attach,
-      settings = servers[server_name],
-      filetypes = (servers[server_name] or {}).filetypes,
-    }
-  end,
-}
+for server_name, server_config in pairs(servers) do
+  local merged_server_config = vim.tbl_deep_extend('force', {
+    capabilities = capabilities,
+    on_attach = on_attach,
+  }, server_config)
 
-require('lspconfig').pyright.setup({
-  root_dir = require('lspconfig.util').root_pattern('pyrightconfig.json', 'pyproject.toml', '.git')
-})
+  vim.lsp.config(server_name, merged_server_config)
+  vim.lsp.enable(server_name)
+end
 
 -- Linting setup
 vim.env.ESLINT_D_PPID = vim.fn.getpid() -- needed so eslind_d exits after vim exits
@@ -809,7 +796,7 @@ cmp.setup {
       local cos = require("copilot.suggestion")
 
       if cos.is_visible() then
-        cos.accept(modifier)
+        cos.accept()
       elseif cmp.visible() then
         if #cmp.get_entries() == 1 then
           cmp.confirm({ select = true })
